@@ -900,6 +900,16 @@
 
     <input type="text" name="_honey" id="_honey" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
 
+    <!-- Fallback: envio via form nativo (mais compatível com GitHub Pages) -->
+    <iframe name="formsubmit-frame" id="formsubmit-frame" style="display:none" title="envio"></iframe>
+    <form id="formsubmit-fallback" action="https://formsubmit.co/aryssonmenezes@gmail.com" method="POST" target="formsubmit-frame" style="display:none" aria-hidden="true">
+      <input type="hidden" name="_subject" id="fb-subject">
+      <input type="hidden" name="_captcha" value="false">
+      <input type="hidden" name="_template" value="box">
+      <input type="hidden" name="message" id="fb-message">
+      <input type="hidden" name="_honey" id="fb-honey">
+    </form>
+
     <div id="success-wrap">
       <h4>
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
@@ -1097,6 +1107,63 @@
     document.getElementById('error-wrap').style.display = 'none';
   }
 
+  function showSuccess(ativacaoPendente) {
+    const msg = document.querySelector('#success-wrap p');
+    msg.textContent = ativacaoPendente
+      ? 'Envio registrado. Se for a primeira vez, abra o Gmail e clique no link de ativação do FormSubmit — depois disso os próximos envios chegam normalmente.'
+      : 'Recebemos os dados em JSON. Você também pode copiar o JSON abaixo para usar no chat com a IA.';
+    document.getElementById('success-wrap').style.display = 'block';
+    document.getElementById('output-wrap').style.display = 'block';
+    document.getElementById('success-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function showError(texto) {
+    document.getElementById('error-message').textContent =
+      texto + ' Os dados estão disponíveis abaixo para copiar manualmente.';
+    document.getElementById('error-wrap').style.display = 'block';
+    document.getElementById('output-wrap').style.display = 'block';
+    document.getElementById('error-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function enviarViaAjax(payload, jsonFormatado) {
+    const url = `https://formsubmit.co/ajax/${encodeURIComponent(FORM_EMAIL)}`;
+    const body = new URLSearchParams({
+      _subject: payload._subject,
+      _captcha: 'false',
+      _template: 'box',
+      message: jsonFormatado,
+      _honey: payload._honey || ''
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body
+    });
+
+    const result = await response.json().catch(() => ({}));
+    const texto = (result.message || '').toLowerCase();
+
+    if (!response.ok) {
+      throw new Error(result.message || `Erro ${response.status} ao enviar.`);
+    }
+
+    if (result.success === false) {
+      throw new Error(result.message || 'FormSubmit recusou o envio.');
+    }
+
+    const ativacaoPendente = texto.includes('activate') || texto.includes('ativ') || texto.includes('confirm');
+    return { ativacaoPendente };
+  }
+
+  function enviarViaFormNativo(payload, jsonFormatado) {
+    document.getElementById('fb-subject').value = payload._subject;
+    document.getElementById('fb-message').value = jsonFormatado;
+    document.getElementById('fb-honey').value = payload._honey || '';
+    document.getElementById('formsubmit-fallback').submit();
+    return { ativacaoPendente: true };
+  }
+
   async function submitForm() {
     const { get, jsonFormatado, payload } = buildFormData();
 
@@ -1115,34 +1182,23 @@
 
     hideFeedback();
     setSubmitting(true);
-
     document.getElementById('output-content').textContent = jsonFormatado;
 
     try {
-      const response = await fetch(`https://formsubmit.co/ajax/${FORM_EMAIL}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Erro ao enviar o formulário.');
+      let info;
+      try {
+        info = await enviarViaAjax(payload, jsonFormatado);
+      } catch (ajaxErr) {
+        console.warn('AJAX falhou, usando fallback:', ajaxErr);
+        info = enviarViaFormNativo(payload, jsonFormatado);
       }
-
-      document.getElementById('success-wrap').style.display = 'block';
-      document.getElementById('output-wrap').style.display = 'block';
-      document.getElementById('success-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showSuccess(info.ativacaoPendente);
     } catch (err) {
-      document.getElementById('error-message').textContent =
-        (err.message || 'Erro de conexão.') + ' Os dados estão disponíveis abaixo para copiar manualmente.';
-      document.getElementById('error-wrap').style.display = 'block';
-      document.getElementById('output-wrap').style.display = 'block';
-      document.getElementById('error-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const msg = err.message || 'Erro de conexão';
+      const dica = msg.includes('Failed to fetch') || msg.includes('NetworkError')
+        ? 'Verifique sua internet e se o site está aberto pela URL do GitHub Pages (não como arquivo local). '
+        : '';
+      showError(dica + msg + '.');
     } finally {
       setSubmitting(false);
     }
