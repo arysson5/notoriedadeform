@@ -558,8 +558,7 @@
 
   .btn-submit:hover svg { transform: translateX(3px); }
 
-  /* ─── Output ─── */
-  #output-wrap,
+  /* ─── Feedback (sucesso / erro) ─── */
   #success-wrap,
   #error-wrap {
     display: none;
@@ -567,11 +566,6 @@
     padding: 20px;
     border-radius: 12px;
     animation: fadeUp 0.5s ease;
-  }
-
-  #output-wrap {
-    background: rgba(26,107,71,0.1);
-    border: 1px solid rgba(26,107,71,0.3);
   }
 
   #success-wrap {
@@ -584,7 +578,6 @@
     border: 1px solid rgba(192,57,43,0.3);
   }
 
-  #output-wrap h4,
   #success-wrap h4 {
     font-family: 'Syne', sans-serif;
     font-size: 14px;
@@ -612,12 +605,56 @@
     line-height: 1.6;
   }
 
-  #output-content {
-    font-family: 'DM Sans', monospace;
-    font-size: 12px;
+  #success-wrap .success-lead {
+    font-size: 15px;
+    color: var(--cream);
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  #success-wrap .success-detail {
+    margin-top: 0;
+  }
+
+  /* Painel JSON só visível após liberar com ?interno=SUA_CHAVE (veja script) */
+  #interno-json-wrap {
+    display: none;
+    margin-top: 16px;
+    padding: 16px 18px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.35);
+    border: 1px dashed rgba(201,168,76,0.25);
+  }
+
+  #interno-json-wrap summary {
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gray);
+    user-select: none;
+  }
+
+  #interno-json-wrap .interno-hint {
+    font-size: 11px;
+    color: var(--gray);
+    margin-top: 8px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  #output-content-interno {
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: 11px;
     color: var(--gray-light);
     white-space: pre-wrap;
-    line-height: 1.8;
+    line-height: 1.7;
+    max-height: 280px;
+    overflow: auto;
+    padding: 12px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    margin-top: 10px;
   }
 
   .copy-btn {
@@ -753,6 +790,10 @@
           <label for="localizacao">Localização <span class="required">*</span></label>
           <input type="text" id="localizacao" name="localizacao" placeholder="Ex: São Paulo, SP — atende todo o Brasil">
         </div>
+        <div class="field">
+          <label for="email_relatorio">E-mail para receber o relatório <span class="required">*</span></label>
+          <input type="email" id="email_relatorio" name="email_relatorio" inputmode="email" autocomplete="email" placeholder="O diagnóstico e o plano serão enviados para este endereço">
+        </div>
       </div>
     </div>
 
@@ -885,7 +926,7 @@
         <div class="submit-top">
           <div class="submit-info">
             <h3>Pronto para enviar o diagnóstico?</h3>
-            <p>Os dados serão enviados de forma estruturada para análise. Quanto mais informações, mais preciso será o relatório.</p>
+            <p>Confirmamos o recebimento por e-mail e preparamos o relatório com base nas respostas. Use um e-mail que você acompanhe com frequência.</p>
           </div>
           <div class="completeness">
             <div class="completeness-pct" id="completeness-pct">0%</div>
@@ -904,24 +945,25 @@
     <div id="success-wrap">
       <h4>
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
-        Diagnóstico enviado com sucesso!
+        Envio confirmado
       </h4>
-      <p>Recebemos os dados em JSON. Você também pode copiar o JSON abaixo para usar no chat com a IA.</p>
+      <p class="success-lead" id="success-lead"></p>
+      <p class="success-detail" id="success-detail"></p>
     </div>
 
     <div id="error-wrap">
       <h4>Não foi possível enviar</h4>
-      <p id="error-message">Tente novamente em alguns instantes. Se o problema persistir, copie os dados manualmente abaixo.</p>
+      <p id="error-message">Tente novamente em alguns instantes. Verifique sua conexão e os dados do formulário.</p>
     </div>
 
-    <!-- Output -->
-    <div id="output-wrap">
-      <h4>
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
-        Dados em JSON
-      </h4>
-      <div id="output-content"></div>
-      <button type="button" class="copy-btn" onclick="copyOutput()">Copiar JSON</button>
+    <!-- JSON: visível só após liberar com ?interno=CHAVE (uso interno). Ver constante INTERNO_CHAVE no script. -->
+    <div id="interno-json-wrap" class="interno-json" aria-hidden="true">
+      <details id="interno-details" open>
+        <summary>Dados estruturados · uso interno</summary>
+        <p class="interno-hint">Último envio deste navegador. Não compartilhe este bloco com respondentes.</p>
+        <pre id="output-content-interno"></pre>
+        <button type="button" class="copy-btn" onclick="copyOutputInterno()">Copiar JSON</button>
+      </details>
     </div>
 
   </form>
@@ -987,7 +1029,7 @@
   }
 
   // ─── Progress tracking ───
-  const requiredFields = ['nome_empresa', 'tipo_mercado', 'segmento', 'localizacao', 'servicos', 'publico_alvo'];
+  const requiredFields = ['nome_empresa', 'tipo_mercado', 'segmento', 'localizacao', 'email_relatorio', 'servicos', 'publico_alvo'];
   const bonusFields    = ['diferenciais', 'ticket_medio', 'volume_vendas', 'canais_input', 'contexto_adicional', 'urgencia_input'];
 
   function updateProgress() {
@@ -1012,7 +1054,7 @@
     document.getElementById('completeness-pct').textContent = pct + '%';
 
     // Section status indicators
-    const s1 = ['nome_empresa','tipo_mercado','segmento','localizacao'].every(f => {
+    const s1 = ['nome_empresa','tipo_mercado','segmento','localizacao','email_relatorio'].every(f => {
       const el = document.getElementById(f); return el && el.value.trim();
     });
     const s2 = ['servicos','publico_alvo'].every(f => {
@@ -1026,9 +1068,57 @@
   // ─── Listen to inputs ───
   document.getElementById('main-form').addEventListener('input', updateProgress);
 
-  // 1) Acesse https://web3forms.com → informe aryssonmenezes@gmail.com → copie a Access Key
+  // Liberação do painel JSON (uso interno): acesse uma vez com
+  //   ?interno=SUA_CHAVE
+  // depois a URL é limpa; a sessão desta aba mantém o acesso.
+  // ─── Troque por uma frase longa e única só sua antes de publicar.
+  const INTERNO_CHAVE = 'altere-esta-chave-interna-diagnostico';
+
+  // 1) Acesse https://web3forms.com → informe seu e-mail → copie a Access Key
   // 2) Cole abaixo entre as aspas e faça push no GitHub (a chave fica pública no HTML — normal em sites estáticos)
   const WEB3FORMS_ACCESS_KEY = 'f7babd7c-e070-4d6b-9803-5f5447da07e4';
+
+  function emailValido(val) {
+    const el = document.getElementById('email_relatorio');
+    if (!el || !val) return false;
+    el.value = val;
+    return el.checkValidity();
+  }
+
+  function guardarJsonInterno(json) {
+    try {
+      sessionStorage.setItem('diagnostico_json', json);
+    } catch (e) { /* ignore */ }
+    const pre = document.getElementById('output-content-interno');
+    if (pre) pre.textContent = json;
+    if (sessionStorage.getItem('diag_painel_ok') === '1') {
+      const wrap = document.getElementById('interno-json-wrap');
+      if (wrap) {
+        wrap.style.display = 'block';
+        wrap.setAttribute('aria-hidden', 'false');
+      }
+    }
+  }
+
+  function iniciarPainelInterno() {
+    const p = new URLSearchParams(location.search);
+    const k = p.get('interno');
+    if (k && k === INTERNO_CHAVE) {
+      sessionStorage.setItem('diag_painel_ok', '1');
+      const path = location.pathname + (location.hash || '');
+      history.replaceState({}, '', path);
+    }
+    if (sessionStorage.getItem('diag_painel_ok') === '1') {
+      const wrap = document.getElementById('interno-json-wrap');
+      if (wrap) {
+        wrap.style.display = 'block';
+        wrap.setAttribute('aria-hidden', 'false');
+      }
+      const saved = sessionStorage.getItem('diagnostico_json');
+      const pre = document.getElementById('output-content-interno');
+      if (saved && pre && !pre.textContent) pre.textContent = saved;
+    }
+  }
 
   function buildFormData() {
     const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
@@ -1048,6 +1138,9 @@
     const dados = {
       formulario: 'diagnostico-ia-notoriedade',
       enviado_em: new Date().toISOString(),
+      contato: {
+        email_relatorio: get('email_relatorio')
+      },
       identificacao: {
         nome_empresa: get('nome_empresa'),
         tipo_mercado: get('tipo_mercado'),
@@ -1100,25 +1193,28 @@
     document.getElementById('error-wrap').style.display = 'none';
   }
 
-  function showSuccess() {
-    document.querySelector('#success-wrap p').textContent =
-      'Recebemos os dados em JSON no seu e-mail. Você também pode copiar o JSON abaixo para usar no chat com a IA.';
+  function showSuccess(emailCliente, nomeEmpresa) {
+    const lead = document.getElementById('success-lead');
+    const detail = document.getElementById('success-detail');
+    const nome = nomeEmpresa || 'sua empresa';
+    if (lead) {
+      lead.textContent = `Recebemos o diagnóstico de "${nome}" com sucesso. Obrigado por confiar no processo.`;
+    }
+    if (detail) {
+      detail.textContent = `Enviaremos o relatório personalizado em breve para ${emailCliente}. Pode levar até alguns dias úteis conforme a demanda. Verifique também a caixa de spam e o filtro de promoções.`;
+    }
     document.getElementById('success-wrap').style.display = 'block';
-    document.getElementById('output-wrap').style.display = 'block';
     document.getElementById('success-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function showError(texto) {
     document.getElementById('error-message').textContent =
-      texto + ' Os dados estão disponíveis abaixo para copiar manualmente.';
+      (texto || 'Não foi possível concluir o envio.') + ' Tente de novo em instantes ou revise os dados.';
     document.getElementById('error-wrap').style.display = 'block';
-    document.getElementById('output-wrap').style.display = 'block';
     document.getElementById('error-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  async function enviarViaWeb3Forms(payload, jsonFormatado, nomeEmpresa) {
-    if (document.getElementById('_honey').value) return;
-
+  async function enviarViaWeb3Forms(payload, jsonFormatado, nomeEmpresa, emailCliente) {
     const response = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
       headers: {
@@ -1129,6 +1225,7 @@
         access_key: WEB3FORMS_ACCESS_KEY,
         subject: payload._subject,
         name: nomeEmpresa,
+        email: emailCliente,
         from_name: 'Diagnóstico IA — Notoriedade',
         message: jsonFormatado,
         botcheck: false
@@ -1143,6 +1240,8 @@
   }
 
   async function submitForm() {
+    if (document.getElementById('_honey').value.trim()) return;
+
     const { get, jsonFormatado, payload } = buildFormData();
 
     const missing = [];
@@ -1150,8 +1249,15 @@
     if (!get('tipo_mercado')) missing.push('Tipo de mercado');
     if (!get('segmento'))     missing.push('Segmento');
     if (!get('localizacao'))  missing.push('Localização');
+    if (!get('email_relatorio')) missing.push('E-mail para o relatório');
     if (!get('servicos'))     missing.push('Serviços');
     if (!get('publico_alvo')) missing.push('Público-alvo');
+
+    if (get('email_relatorio') && !emailValido(get('email_relatorio'))) {
+      alert('Por favor, informe um e-mail válido para receber o relatório.');
+      document.getElementById('email_relatorio')?.focus();
+      return;
+    }
 
     if (missing.length) {
       alert('Por favor, preencha os campos obrigatórios:\n• ' + missing.join('\n• '));
@@ -1160,17 +1266,16 @@
 
     hideFeedback();
     setSubmitting(true);
-    sessionStorage.setItem('diagnostico_json', jsonFormatado);
-    document.getElementById('output-content').textContent = jsonFormatado;
+    guardarJsonInterno(jsonFormatado);
 
     try {
       if (!WEB3FORMS_ACCESS_KEY) {
         throw new Error(
-          'Envio por e-mail ainda não está ativo. O administrador precisa cadastrar a chave gratuita em web3forms.com (leva cerca de 1 minuto) e publicar no site.'
+          'Envio por e-mail ainda não está ativo. O administrador precisa cadastrar a chave gratuita em web3forms.com e publicar no site.'
         );
       }
-      await enviarViaWeb3Forms(payload, jsonFormatado, get('nome_empresa'));
-      showSuccess();
+      await enviarViaWeb3Forms(payload, jsonFormatado, get('nome_empresa'), get('email_relatorio'));
+      showSuccess(get('email_relatorio'), get('nome_empresa'));
     } catch (err) {
       showError(err.message || 'Erro de conexão.');
     } finally {
@@ -1178,16 +1283,21 @@
     }
   }
 
-  function copyOutput() {
-    const text = document.getElementById('output-content').textContent;
+  function copyOutputInterno() {
+    const text = document.getElementById('output-content-interno').textContent;
+    if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
-      const btn = document.querySelector('.copy-btn');
-      btn.textContent = 'Copiado!';
-      setTimeout(() => btn.textContent = 'Copiar JSON', 2000);
+      const wrap = document.getElementById('interno-json-wrap');
+      const btn = wrap?.querySelector('.copy-btn');
+      if (btn) {
+        btn.textContent = 'Copiado!';
+        setTimeout(() => { btn.textContent = 'Copiar JSON'; }, 2000);
+      }
     });
   }
 
   // ─── Init ───
+  iniciarPainelInterno();
   updateProgress();
 </script>
 
